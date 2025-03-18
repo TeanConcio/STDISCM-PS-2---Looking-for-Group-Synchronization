@@ -3,3 +3,5 @@
 
 
 LFGQueuer.GetConfig();
+LFGQueuer.Initialize();
+LFGQueuer.Start();

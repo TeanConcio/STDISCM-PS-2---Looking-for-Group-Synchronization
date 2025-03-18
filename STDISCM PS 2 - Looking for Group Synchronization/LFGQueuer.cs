@@ -9,26 +9,34 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
     internal class LFGQueuer
     {
         // Default Inputs
-        private const int DEFAULT_MAX_INSTANCES = 4;
-        private const int DEFAULT_TANKS_PER_INSTANCE = 8;
-        private const int DEFAULT_HEALERS_PER_INSTANCE = 8;
-        private const int DEFAULT_DPS_PER_INSTANCE = 24;
-        private const int DEFAULT_MIN_FINISH_TIME = 10;
-        private const int DEFAULT_MAX_FINISH_TIME = 30;
+        private const uint DEFAULT_MAX_INSTANCES = 4;
+        private const uint DEFAULT_TANKS_PER_INSTANCE = 8;
+        private const uint DEFAULT_HEALERS_PER_INSTANCE = 8;
+        private const uint DEFAULT_DPS_PER_INSTANCE = 24;
+        private const uint DEFAULT_MIN_FINISH_TIME = 1000;
+        private const uint DEFAULT_MAX_FINISH_TIME = 5000;
+
+        // Members per Instance
+
+        private const uint REQUIRED_TANKS_PER_INSTANCE = 1;
+        private const uint REQUIRED_HEALERS_PER_INSTANCE = 1;
+        private const uint REQUIRED_DPS_PER_INSTANCE = 3;
 
         // Inputs
-        public static int maxInstances;
-        public static int tanksPerInstance;
-        public static int healersPerInstance;
-        public static int DPSPerInstance;
-        public static int minFinishTime;
-        public static int maxFinishTime;
+        public static uint maxInstances;
+        public static uint tankPlayers;
+        public static uint healerPlayers;
+        public static uint DPSPlayers;
+        public static uint minFinishTime;
+        public static uint maxFinishTime;
 
         public static bool isRunning = true;
+        private static uint numFullParties = 0;
+        private static uint printNum = 0;
+        private static readonly object printLock = new object();
 
         // Variables
-        public static List<PartyInstance> instances = new List<PartyInstance>();
-        public static List<Player> playerQueue = new List<Player>();
+        private static List<PartyInstance> partyInstances = new List<PartyInstance>();
 
         // Get inputs from config.txt
         public static void GetConfig()
@@ -50,7 +58,7 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                 switch (parts[0].Trim().ToUpper())
                 {
                     case "MAX_NUMBER_OF_INSTANCES (N)":
-                        if (!int.TryParse(parts[1].Trim(), out int numInstances) || numInstances < 1)
+                        if (!uint.TryParse(parts[1].Trim(), out uint numInstances) || numInstances > int.MaxValue || numInstances < 1)
                         {
                             Console.WriteLine($"Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_MAX_INSTANCES}.");
                             maxInstances = DEFAULT_MAX_INSTANCES;
@@ -62,43 +70,43 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                         }
                         break;
                     case "NUMBER_OF_TANK_PLAYERS (T)":
-                        if (!int.TryParse(parts[1].Trim(), out int numTanks) || numTanks < 1)
+                        if (!uint.TryParse(parts[1].Trim(), out uint numTanks) || numTanks > int.MaxValue || numTanks < 1)
                         {
                             Console.WriteLine($"Error: Invalid Number of Tanks. Setting Number of Tanks to {DEFAULT_TANKS_PER_INSTANCE}.");
-                            tanksPerInstance = DEFAULT_TANKS_PER_INSTANCE;
+                            tankPlayers = DEFAULT_TANKS_PER_INSTANCE;
                             hasErrorWarning = true;
                         }
                         else
                         {
-                            tanksPerInstance = numTanks;
+                            tankPlayers = numTanks;
                         }
                         break;
                     case "NUMBER_OF_HEALER_PLAYERS (H)":
-                        if (!int.TryParse(parts[1].Trim(), out int numHealers) || numHealers < 1)
+                        if (!uint.TryParse(parts[1].Trim(), out uint numHealers) || numHealers > int.MaxValue || numHealers < 1)
                         {
                             Console.WriteLine($"Error: Invalid Number of Healers. Setting Number of Healers to {DEFAULT_HEALERS_PER_INSTANCE}.");
-                            healersPerInstance = DEFAULT_HEALERS_PER_INSTANCE;
+                            healerPlayers = DEFAULT_HEALERS_PER_INSTANCE;
                             hasErrorWarning = true;
                         }
                         else
                         {
-                            healersPerInstance = numHealers;
+                            healerPlayers = numHealers;
                         }
                         break;
                     case "NUMBER_OF_DPS_PLAYERS (D)":
-                        if (!int.TryParse(parts[1].Trim(), out int numDPS) || numDPS < 1)
+                        if (!uint.TryParse(parts[1].Trim(), out uint numDPS) || numDPS > int.MaxValue || numDPS < 1)
                         {
                             Console.WriteLine($"Error: Invalid Number of DPS. Setting Number of DPS to {DEFAULT_DPS_PER_INSTANCE}.");
-                            DPSPerInstance = DEFAULT_DPS_PER_INSTANCE;
+                            DPSPlayers = DEFAULT_DPS_PER_INSTANCE;
                             hasErrorWarning = true;
                         }
                         else
                         {
-                            DPSPerInstance = numDPS;
+                            DPSPlayers = numDPS;
                         }
                         break;
                     case "MIN_FINISH_TIME_FOR_INSTANCE (T1)":
-                        if (!int.TryParse(parts[1].Trim(), out int minTime) || minTime < 1)
+                        if (!uint.TryParse(parts[1].Trim(), out uint minTime) || minTime > int.MaxValue || minTime < 1)
                         {
                             Console.WriteLine($"Error: Invalid Minimum Finish Time. Setting Minimum Finish Time to {DEFAULT_MIN_FINISH_TIME}.");
                             minFinishTime = DEFAULT_MIN_FINISH_TIME;
@@ -110,7 +118,7 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                         }
                         break;
                     case "MAX_FINISH_TIME_FOR_INSTANCE (T2)":
-                        if (!int.TryParse(parts[1].Trim(), out int maxTime) || maxTime < 1)
+                        if (!uint.TryParse(parts[1].Trim(), out uint maxTime) || maxTime > int.MaxValue || maxTime < 1)
                         {
                             Console.WriteLine($"Error: Invalid Maximum Finish Time. Setting Maximum Finish Time to {DEFAULT_MAX_FINISH_TIME}.");
                             maxFinishTime = DEFAULT_MAX_FINISH_TIME;
@@ -124,6 +132,13 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                 }
             }
 
+            // Get number of full parties
+            numFullParties = Math.Min(
+                tankPlayers / REQUIRED_TANKS_PER_INSTANCE, 
+                Math.Min(
+                    healerPlayers / REQUIRED_HEALERS_PER_INSTANCE, 
+                    DPSPlayers / REQUIRED_DPS_PER_INSTANCE));
+
             // If there is an error, print a line
             if (hasErrorWarning)
             {
@@ -132,11 +147,13 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
 
             // Print Configurations
             Console.WriteLine($"Max Number of Instances (n) : {maxInstances}");
-            Console.WriteLine($"Number of Tanks per Instance (t) : {tanksPerInstance}");
-            Console.WriteLine($"Number of Healers per Instance (h) : {healersPerInstance}");
-            Console.WriteLine($"Number of DPS per Instance (d) : {DPSPerInstance}");
+            Console.WriteLine($"Number of Tanks per Instance (t) : {tankPlayers}");
+            Console.WriteLine($"Number of Healers per Instance (h) : {healerPlayers}");
+            Console.WriteLine($"Number of DPS per Instance (d) : {DPSPlayers}");
             Console.WriteLine($"Min Finish Time for Instance (t1) : {minFinishTime}");
             Console.WriteLine($"Max Finish Time for Instance (t2) : {maxFinishTime}");
+            Console.WriteLine();
+            Console.WriteLine($"Number of Full Parties : {numFullParties}");
 
             Console.WriteLine();
         }
@@ -145,55 +162,96 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         public static void Initialize()
         {
             // Initialize party instances
-            for (int i = 0; i < maxInstances; i++)
+            for (uint i = 0; i < maxInstances; i++)
             {
-                instances.Add(new PartyInstance(i + 1));
-            }
-
-            // Initialize player queue
-            List<Player> temp = new List<Player>();
-            for (int i = 0; i < tanksPerInstance; i++)
-            {
-                temp.Add(new Player(i, Player.PlayerClass.TANK));
-            }
-            for (int i = 0; i < healersPerInstance; i++)
-            {
-                temp.Add(new Player(i, Player.PlayerClass.HEALER));
-            }
-            for (int i = 0; i < DPSPerInstance; i++)
-            {
-                temp.Add(new Player(i, Player.PlayerClass.DPS));
-            }
-
-            // Shuffle player queue
-            while (temp.Any())
-            {
-                int randomIndex = Random.Shared.Next(temp.Count);
-                playerQueue.Add(temp[randomIndex]);
-                temp.RemoveAt(randomIndex);
+                partyInstances.Add(new PartyInstance(i + 1));
             }
         }
 
         // Run
         public static void Run()
         {
-            int prioritizedParty = 0;
+            uint prioritizedParty = 0;
 
             while (isRunning)
             {
+                if (numFullParties > 0)
+                {
+                    bool result = partyInstances[(int)prioritizedParty].AddMembers();
+                    if (result)
+                        numFullParties--;
 
+                    prioritizedParty++;
+                    if (prioritizedParty >= maxInstances)
+                        prioritizedParty = 0;
+                }
+                else
+                {
+                    // Check if all party instances are waiting
+                    bool allWaiting = true;
+                    foreach (PartyInstance instance in partyInstances)
+                    {
+                        if (instance.state != PartyInstance.PartyState.WAITING)
+                        {
+                            allWaiting = false;
+                            break;
+                        }
+                    }
+                    if (allWaiting && numFullParties == 0)
+                    {
+                        isRunning = false;
+                    }
+                }
+                    
             }
+
+            PrintPartyInstances();
         }
 
         // Start
         public static void Start()
         {
-            foreach (PartyInstance instance in instances)
+            PrintPartyInstances();
+
+            foreach (PartyInstance instance in partyInstances)
             {
                 instance.Start();
             }
 
             Run();
+        }
+
+        // Print Party Instances
+        public static void PrintPartyInstances()
+        {
+            lock (printLock)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"Log {printNum++}: ");
+                foreach (PartyInstance instance in partyInstances)
+                {
+                    Console.WriteLine($"Party Instance {instance.id} : {instance.state}");
+                }
+            }
+        }
+        public static void PrintPartyInstances(uint changedPartyInstance, PartyInstance.PartyState nextPartyState)
+        {
+            lock (printLock)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"Log {printNum++}: ");
+                foreach (PartyInstance instance in partyInstances)
+                {
+                    if (instance.id == changedPartyInstance)
+                    {
+                        Console.WriteLine($"Party Instance {instance.id} : {instance.state} -> {nextPartyState}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Party Instance {instance.id} : {instance.state}");
+                    }
+                }
+            }
         }
     }
 }

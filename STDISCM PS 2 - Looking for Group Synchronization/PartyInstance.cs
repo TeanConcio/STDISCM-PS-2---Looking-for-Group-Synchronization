@@ -10,57 +10,33 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
     {
         public enum PartyState
         {
-            FORMING,
-            READY,
+            WAITING,
             RUNNING,
-            FINISHED
         }
 
-        // Constants
-        public const int REQUIRED_TANKS = 1;
-        public const int REQUIRED_HEALERS = 1;
-        public const int REQUIRED_DPS = 3;
-
         // Variables
-        public int id;
-        public int numTanks = 0;
-        public int numHealers = 0;
-        public int numDPS = 0;
-
-        public PartyState state = PartyState.FORMING;
-        public List<Player> players = new List<Player>();
+        public uint id;
+        public PartyState state = PartyState.WAITING;
         private Thread thread;
 
         // Constructor
-        public PartyInstance(int id)
+        public PartyInstance(uint id)
         {
             this.id = id;
+            this.thread = new Thread(Run);
         }
 
-        // Needed roles
-        public int[] NeededRoles()
+        // Add party members
+        public bool AddMembers()
         {
-            int[] requiredRoles = new int[] { REQUIRED_TANKS - numTanks, REQUIRED_HEALERS - numHealers, REQUIRED_DPS - numDPS };
-
-            return requiredRoles;
-        }
-
-        // Add player to party
-        public void AddPlayer(Player player)
-        {
-            players.Add(player);
-            switch (player.playerClass)
+            if (this.state == PartyState.WAITING)
             {
-                case Player.PlayerClass.TANK:
-                    numTanks++;
-                    break;
-                case Player.PlayerClass.HEALER:
-                    numHealers++;
-                    break;
-                case Player.PlayerClass.DPS:
-                    numDPS++;
-                    break;
+                LFGQueuer.PrintPartyInstances(id, PartyState.RUNNING);
+                this.state = PartyState.RUNNING;
+                return true;
             }
+
+            return false;
         }
 
         // Run
@@ -68,31 +44,17 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         {
             while (LFGQueuer.isRunning)
             {
+                PartyState origState = this.state;
+
                 switch (this.state)
                 {
-                    case PartyState.FORMING:
-                        if (this.numTanks == REQUIRED_TANKS ||
-                            this.numHealers == REQUIRED_HEALERS ||
-                            this.numDPS == REQUIRED_DPS)
-                            {
-                                this.state = PartyState.READY;
-                            }
-                        break;
-
-                    case PartyState.READY:
-                        this.state = PartyState.RUNNING;
+                    case PartyState.WAITING:
                         break;
 
                     case PartyState.RUNNING:
-                        Thread.Sleep(Random.Shared.Next(LFGQueuer.minFinishTime, LFGQueuer.maxFinishTime + 1));
-                        this.state = PartyState.FINISHED;
-                        break;
-
-                    case PartyState.FINISHED:
-                        this.numTanks = 0;
-                        this.numHealers = 0;
-                        this.numDPS = 0;
-                        this.state = PartyState.FORMING;
+                        Thread.Sleep(Random.Shared.Next((int)LFGQueuer.minFinishTime, (int)LFGQueuer.maxFinishTime + 1));
+                        LFGQueuer.PrintPartyInstances(id, PartyState.WAITING);
+                        this.state = PartyState.WAITING;
                         break;
                 }
             }
