@@ -10,13 +10,16 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
     {
         public enum PartyState
         {
-            WAITING,
-            RUNNING,
+            EMPTY,
+            ACTIVE,
         }
 
         // Variables
         public uint id;
-        public PartyState state = PartyState.WAITING;
+        public PartyState state = PartyState.EMPTY;
+        public uint partiesServed = 0;
+        public uint totalTimeServing = 0;
+
         private Thread thread;
 
         // Constructor
@@ -29,10 +32,11 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         // Add party members
         public bool AddMembers()
         {
-            if (this.state == PartyState.WAITING)
+            if (this.state == PartyState.EMPTY)
             {
-                LFGQueuer.PrintPartyInstances(id, PartyState.RUNNING);
-                this.state = PartyState.RUNNING;
+                LFGQueuer.PrintPartyInstances(id, PartyState.ACTIVE);
+                this.state = PartyState.ACTIVE;
+                this.partiesServed++;
                 return true;
             }
 
@@ -48,13 +52,16 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
 
                 switch (this.state)
                 {
-                    case PartyState.WAITING:
+                    case PartyState.EMPTY:
                         break;
 
-                    case PartyState.RUNNING:
-                        Thread.Sleep(Random.Shared.Next((int)LFGQueuer.minFinishTime, (int)LFGQueuer.maxFinishTime + 1));
-                        LFGQueuer.PrintPartyInstances(id, PartyState.WAITING);
-                        this.state = PartyState.WAITING;
+                    case PartyState.ACTIVE:
+                        int sleepTime = Random.Shared.Next((int)LFGQueuer.minFinishTime, (int)LFGQueuer.maxFinishTime + 1);
+                        Thread.Sleep(sleepTime * 1000);
+                        this.totalTimeServing += (uint)sleepTime;
+
+                        LFGQueuer.PrintPartyInstances(id, PartyState.EMPTY, (uint)sleepTime);
+                        this.state = PartyState.EMPTY;
                         break;
                 }
             }
