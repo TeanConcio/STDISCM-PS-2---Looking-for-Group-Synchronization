@@ -35,7 +35,6 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
             if (this.state == PartyState.EMPTY)
             {
                 LFGQueuer.PrintPartyInstances(id, PartyState.ACTIVE);
-                this.state = PartyState.ACTIVE;
                 this.partiesServed++;
                 return true;
             }
@@ -61,7 +60,6 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                         this.totalTimeServing += (uint)sleepTime;
 
                         LFGQueuer.PrintPartyInstances(id, PartyState.EMPTY, (uint)sleepTime);
-                        this.state = PartyState.EMPTY;
                         break;
                 }
             }

@@ -29,14 +29,13 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         public static uint DPSPlayers;
         public static uint minFinishTime;
         public static uint maxFinishTime;
-
+        
+        // Variables
+        private static List<PartyInstance> partyInstances = new List<PartyInstance>();
         public static bool isRunning = true;
         private static uint numFullParties = 0;
         private static uint logNum = 0;
-        private static readonly object printLock = new object();
-
-        // Variables
-        private static List<PartyInstance> partyInstances = new List<PartyInstance>();
+        private static readonly QueuedLock printLock = new QueuedLock();
 
         // Get inputs from config.txt
         public static void GetConfig()
@@ -133,6 +132,15 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                         }
                         break;
                 }
+            }
+
+            // Check min finish time is less than max finish time
+            if (minFinishTime > maxFinishTime)
+            {
+                Console.WriteLine($"Error: Minimum Finish Time is greater than Maximum Finish Time. Setting Minimum Finish Time to {DEFAULT_MIN_FINISH_TIME} and Maximum Finish Time to {DEFAULT_MAX_FINISH_TIME}.");
+                minFinishTime = DEFAULT_MIN_FINISH_TIME;
+                maxFinishTime = DEFAULT_MAX_FINISH_TIME;
+                hasErrorWarning = true;
             }
 
             // Get number of full parties
@@ -232,39 +240,46 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         }
 
         // Print Party Instances
-        public static void PrintPartyInstances()
+        public static async void PrintPartyInstances()
         {
-            lock (printLock)
+            using (printLock.Lock())
             {
-                Console.WriteLine();
-                Console.WriteLine($"Log {logNum++}: ");
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine();
+                sb.AppendLine($"Log {logNum++}: ");
                 foreach (PartyInstance instance in partyInstances)
                 {
-                    Console.WriteLine($"Party Instance {instance.id} : {instance.state}");
+                    sb.AppendLine($"Party Instance {instance.id} : {instance.state}");
                 }
+
+                Console.WriteLine(sb.ToString());
             }
         }
-        public static void PrintPartyInstances(
+        public static async void PrintPartyInstances(
             uint changedPartyInstance, 
             PartyInstance.PartyState nextPartyState, 
             uint runTime = 0)
         {
-            lock (printLock)
+            using (printLock.Lock())
             {
-                Console.WriteLine();
-                Console.WriteLine($"Log {logNum++}: ");
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine();
+                sb.AppendLine($"Log {logNum++}: ");
                 foreach (PartyInstance instance in partyInstances)
                 {
                     if (instance.id == changedPartyInstance)
                     {
                         string runTimeString = nextPartyState == PartyInstance.PartyState.ACTIVE ? "" : $" (Runtime: {runTime} seconds)";
-                        Console.WriteLine($"Party Instance {instance.id} : {instance.state} -> {nextPartyState}" + runTimeString);
+                        sb.AppendLine($"Party Instance {instance.id} : {instance.state} -> {nextPartyState}" + runTimeString);
+                        instance.state = nextPartyState;
                     }
                     else
                     {
-                        Console.WriteLine($"Party Instance {instance.id} : {instance.state}");
+                        sb.AppendLine($"Party Instance {instance.id} : {instance.state}");
                     }
                 }
+
+                Console.WriteLine(sb.ToString());
             }
         }
 
