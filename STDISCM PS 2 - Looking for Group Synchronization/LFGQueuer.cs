@@ -77,7 +77,7 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                     case "NUMBER_OF_TANK_PLAYERS (T)":
                         if (!uint.TryParse(parts[1].Trim(), out uint numTanks) || numTanks > int.MaxValue)
                         {
-                            Console.WriteLine($"Error: Invalid Number of Tanks. Setting Number of Tanks to {DEFAULT_TANKS_PER_INSTANCE}.");
+                            Console.WriteLine($"Error: Invalid Number of Tank Players. Setting Number of Tank Players to {DEFAULT_TANKS_PER_INSTANCE}.");
                             tankPlayers = DEFAULT_TANKS_PER_INSTANCE;
                             hasErrorWarning = true;
                         }
@@ -89,7 +89,7 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                     case "NUMBER_OF_HEALER_PLAYERS (H)":
                         if (!uint.TryParse(parts[1].Trim(), out uint numHealers) || numHealers > int.MaxValue)
                         {
-                            Console.WriteLine($"Error: Invalid Number of Healers. Setting Number of Healers to {DEFAULT_HEALERS_PER_INSTANCE}.");
+                            Console.WriteLine($"Error: Invalid Number of Healer Players. Setting Number of Healer Players to {DEFAULT_HEALERS_PER_INSTANCE}.");
                             healerPlayers = DEFAULT_HEALERS_PER_INSTANCE;
                             hasErrorWarning = true;
                         }
@@ -101,7 +101,7 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                     case "NUMBER_OF_DPS_PLAYERS (D)":
                         if (!uint.TryParse(parts[1].Trim(), out uint numDPS) || numDPS > int.MaxValue)
                         {
-                            Console.WriteLine($"Error: Invalid Number of DPS. Setting Number of DPS to {DEFAULT_DPS_PER_INSTANCE}.");
+                            Console.WriteLine($"Error: Invalid Number of DPS Players. Setting Number of DPS Players to {DEFAULT_DPS_PER_INSTANCE}.");
                             DPSPlayers = DEFAULT_DPS_PER_INSTANCE;
                             hasErrorWarning = true;
                         }
@@ -163,9 +163,9 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
 
             // Print Configurations
             Console.WriteLine($"Max Number of Instances (n) : {maxInstances}");
-            Console.WriteLine($"Number of Tanks per Instance (t) : {tankPlayers}");
-            Console.WriteLine($"Number of Healers per Instance (h) : {healerPlayers}");
-            Console.WriteLine($"Number of DPS per Instance (d) : {DPSPlayers}");
+            Console.WriteLine($"Number of Tanks Players (t) : {tankPlayers}");
+            Console.WriteLine($"Number of Healers Players (h) : {healerPlayers}");
+            Console.WriteLine($"Number of DPS Players (d) : {DPSPlayers}");
             Console.WriteLine($"Min Finish Time for Instance (t1) : {minFinishTime}");
             Console.WriteLine($"Max Finish Time for Instance (t2) : {maxFinishTime}");
             Console.WriteLine();
