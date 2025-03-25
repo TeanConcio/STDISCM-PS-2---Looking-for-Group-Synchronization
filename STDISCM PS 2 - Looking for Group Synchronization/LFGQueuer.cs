@@ -228,8 +228,13 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                     {
                         isRunning = false;
                     }
-                }
-                    
+                }  
+            }
+
+            // Join threads
+            foreach (PartyInstance instance in partyInstances)
+            {
+                instance.Join();
             }
 
             PrintPartyInstances();
