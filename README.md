@@ -8,4 +8,4 @@ Github Link: https://github.com/TeanConcio/STDISCM-PS-2---Looking-for-Group-Sync
 2. On the Solution Explorer side bar, double click "config.txt" to open it.
 3. Change the configurations as needed. 
 4. On the tool bar at the top, run the "STDISCM PS 2 - Looking for Group Synchronization" project in Debug or Release mode.
-5. Videos can be found in the "Videos" Folder, with each video being labeled accordingly.
+5. The slides and video be found in the base folder, with them being labeled accordingly.
