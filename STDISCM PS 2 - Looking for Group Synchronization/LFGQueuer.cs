@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -31,9 +32,11 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         public static uint maxFinishTime;
         
         // Variables
-        private static List<PartyInstance> partyInstances = new List<PartyInstance>();
+        private static List<DungeonInstance> dungeonInstances = new List<DungeonInstance>();
         public static bool isRunning = true;
         private static uint numFullParties = 0;
+        private static uint waitingParties = 0;
+        private static uint finishedParties = 0;
         private static uint logNum = 0;
         private static readonly QueuedLock printLock = new QueuedLock();
 
@@ -150,6 +153,8 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                     healerPlayers / REQUIRED_HEALERS_PER_INSTANCE, 
                     DPSPlayers / REQUIRED_DPS_PER_INSTANCE));
 
+            waitingParties = numFullParties;
+
             // If there is an error, print a line
             if (hasErrorWarning)
             {
@@ -173,10 +178,10 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         // Initialize
         public static void Initialize()
         {
-            // Initialize party instances
+            // Initialize dungeon instances
             for (uint i = 0; i < maxInstances; i++)
             {
-                partyInstances.Add(new PartyInstance(i + 1));
+                dungeonInstances.Add(new DungeonInstance(i + 1));
             }
         }
 
@@ -185,9 +190,9 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         {
             Console.WriteLine("Starting LFG Queuer");
 
-            PrintPartyInstances();
+            PrintDungeonInstances();
 
-            foreach (PartyInstance instance in partyInstances)
+            foreach (DungeonInstance instance in dungeonInstances)
             {
                 instance.Start();
             }
@@ -198,27 +203,27 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         // Run
         public static void Run()
         {
-            uint prioritizedParty = 0;
+            uint prioritizedDungeon = 0;
             uint partiesLeft = numFullParties;
             while (isRunning)
             {
                 if (partiesLeft > 0)
                 {
-                    bool result = partyInstances[(int)prioritizedParty].AddMembers();
+                    bool result = dungeonInstances[(int)prioritizedDungeon].AddMembers();
                     if (result)
                         partiesLeft--;
 
-                    prioritizedParty++;
-                    if (prioritizedParty >= maxInstances)
-                        prioritizedParty = 0;
+                    prioritizedDungeon++;
+                    if (prioritizedDungeon >= maxInstances)
+                        prioritizedDungeon = 0;
                 }
                 else
                 {
-                    // Check if all party instances are waiting
+                    // Check if all dungeon instances are waiting
                     bool allWaiting = true;
-                    foreach (PartyInstance instance in partyInstances)
+                    foreach (DungeonInstance instance in dungeonInstances)
                     {
-                        if (instance.state != PartyInstance.PartyState.EMPTY)
+                        if (instance.state != DungeonInstance.DungeonState.EMPTY)
                         {
                             allWaiting = false;
                             break;
@@ -232,57 +237,78 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
             }
 
             // Join threads
-            foreach (PartyInstance instance in partyInstances)
+            foreach (DungeonInstance instance in dungeonInstances)
             {
                 instance.Join();
             }
 
-            PrintPartyInstances();
+            PrintDungeonInstances();
             Console.WriteLine();
             Console.WriteLine();
 
             PrintSummary();
         }
 
-        // Print Party Instances
-        public static async void PrintPartyInstances()
+        // Print Dungeon Instances
+        public static async void PrintDungeonInstances()
         {
             using (printLock.Lock())
             {
                 StringBuilder sb = new StringBuilder();
+
                 sb.AppendLine();
                 sb.AppendLine($"Log {logNum++}: ");
-                foreach (PartyInstance instance in partyInstances)
+
+                foreach (DungeonInstance instance in dungeonInstances)
                 {
-                    sb.AppendLine($"Party Instance {instance.id} : {instance.state}");
+                    sb.AppendLine($"\tDungeon Instance {instance.id} : {instance.state}");
                 }
+
+                sb.AppendLine($"\tWaiting Parties: {waitingParties}");
+                sb.AppendLine($"\tFinished Parties: {finishedParties}");
 
                 Console.WriteLine(sb.ToString());
             }
         }
-        public static async void PrintPartyInstances(
-            uint changedPartyInstance, 
-            PartyInstance.PartyState nextPartyState, 
+        public static async void PrintDungeonInstances(
+            uint changedDungeonInstance, 
+            DungeonInstance.DungeonState nextDungeonState, 
             uint runTime = 0)
         {
             using (printLock.Lock())
             {
                 StringBuilder sb = new StringBuilder();
+
                 sb.AppendLine();
                 sb.AppendLine($"Log {logNum++}: ");
-                foreach (PartyInstance instance in partyInstances)
+
+                foreach (DungeonInstance instance in dungeonInstances)
                 {
-                    if (instance.id == changedPartyInstance)
+                    if (instance.id == changedDungeonInstance)
                     {
-                        string runTimeString = nextPartyState == PartyInstance.PartyState.ACTIVE ? "" : $" (Runtime: {runTime} seconds)";
-                        sb.AppendLine($"Party Instance {instance.id} : {instance.state} -> {nextPartyState}" + runTimeString);
-                        instance.state = nextPartyState;
+                        string runTimeString = "";
+
+                        if (nextDungeonState == DungeonInstance.DungeonState.EMPTY)
+                        {
+                            runTimeString = $" (Runtime: {runTime} seconds)";
+                            LFGQueuer.finishedParties++;
+                        }
+                        else if (nextDungeonState == DungeonInstance.DungeonState.ACTIVE)
+                        {
+                            LFGQueuer.waitingParties--;
+                        }
+
+                        sb.AppendLine($"\tDungeon Instance {instance.id} : {instance.state} -> {nextDungeonState}" + runTimeString);
+                        instance.state = nextDungeonState;
                     }
                     else
                     {
-                        sb.AppendLine($"Party Instance {instance.id} : {instance.state}");
+                        sb.AppendLine($"\tDungeon Instance {instance.id} : {instance.state}");
                     }
                 }
+
+                sb.AppendLine($"\tWaiting Parties: {waitingParties}");
+                sb.AppendLine($"\tFinished Parties: {finishedParties}");
 
                 Console.WriteLine(sb.ToString());
             }
@@ -294,11 +320,11 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
             Console.WriteLine("Summary: ");
             Console.WriteLine();
 
-            // Print party instances summary
-            foreach (PartyInstance instance in partyInstances)
+            // Print dungeon instances summary
+            foreach (DungeonInstance instance in dungeonInstances)
             {
 
-                Console.WriteLine($"Party Instance {instance.id} : {instance.partiesServed} parties served; {instance.totalTimeServing} seconds total serving time");
+                Console.WriteLine($"Dungeon Instance {instance.id} : {instance.partiesServed} parties served; {instance.totalTimeServing} seconds total serving time");
             }
 
             Console.WriteLine();

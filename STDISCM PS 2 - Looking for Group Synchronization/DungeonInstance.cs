@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace STDISCM_PS_2___Looking_for_Group_Synchronization
 {
-    internal class PartyInstance
+    internal class DungeonInstance
     {
-        public enum PartyState
+        public enum DungeonState
         {
             EMPTY,
             ACTIVE,
@@ -16,14 +16,14 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
 
         // Variables
         public uint id;
-        public PartyState state = PartyState.EMPTY;
+        public DungeonState state = DungeonState.EMPTY;
         public uint partiesServed = 0;
         public uint totalTimeServing = 0;
 
         private Thread thread;
 
         // Constructor
-        public PartyInstance(uint id)
+        public DungeonInstance(uint id)
         {
             this.id = id;
             this.thread = new Thread(Run);
@@ -32,9 +32,9 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         // Add party members
         public bool AddMembers()
         {
-            if (this.state == PartyState.EMPTY)
+            if (this.state == DungeonState.EMPTY)
             {
-                LFGQueuer.PrintPartyInstances(id, PartyState.ACTIVE);
+                LFGQueuer.PrintDungeonInstances(id, DungeonState.ACTIVE);
                 this.partiesServed++;
                 return true;
             }
@@ -47,19 +47,19 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
         {
             while (LFGQueuer.isRunning)
             {
-                PartyState origState = this.state;
+                DungeonState origState = this.state;
 
                 switch (this.state)
                 {
-                    case PartyState.EMPTY:
+                    case DungeonState.EMPTY:
                         break;
 
-                    case PartyState.ACTIVE:
+                    case DungeonState.ACTIVE:
                         int sleepTime = Random.Shared.Next((int)LFGQueuer.minFinishTime, (int)LFGQueuer.maxFinishTime + 1);
                         Thread.Sleep(sleepTime * 1000);
                         this.totalTimeServing += (uint)sleepTime;
 
-                        LFGQueuer.PrintPartyInstances(id, PartyState.EMPTY, (uint)sleepTime);
+                        LFGQueuer.PrintDungeonInstances(id, DungeonState.EMPTY, (uint)sleepTime);
                         break;
                 }
             }
