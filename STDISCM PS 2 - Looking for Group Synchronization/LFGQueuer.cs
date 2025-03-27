@@ -71,6 +71,13 @@ namespace STDISCM_PS_2___Looking_for_Group_Synchronization
                         }
                         else
                         {
+                            // Check if very large number of instances
+                            if (numInstances >= 50)
+                            {
+                                Console.WriteLine($"Warning: Very large number of instances. Please expect a very long initialization time.");
+                                hasErrorWarning = true;
+                            }
+
                             maxInstances = numInstances;
                         }
                         break;
